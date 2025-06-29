@@ -1,0 +1,75 @@
+.embla__container {
+  display: flex;
+  align-items: center;
+}
+
+.embla__slide {
+  flex: 0 0 50%; 
+  opacity: 1; 
+  transition: transform 0.1s ease-out, opacity 0.1s ease, height 0.1s ease;
+}
+
+.embla__slide.is-focused {
+  flex: 0 0 50%; 
+  transform: scale(1); 
+  opacity: 1; 
+  z-index: 10; 
+  border: 2px solid green;
+  border-radius: 8px;
+}
+
+.embla__slide:not(.is-focused) {
+  z-index: 5; 
+  transform: scale(0.6);
+  border: 2px solid orange;
+  border-radius: 8px;
+}
+
+.embla__viewport {
+  overflow: hidden;
+  position: relative;
+}
+
+.embla__viewport .embla__container {
+  margin: 0 -10%; 
+}
+
+.embla__slide-content {
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.embla__slide.is-focused .embla__slide-content {
+  height: 300px;
+}
+
+.embla__slide:not(.is-focused) .embla__slide-content {
+  height: 220px;
+}
+
+.embla__slide.is-focused .embla__slide-content .customheight {
+  height: 200px;
+}
+
+.embla__slide:not(.is-focused) .embla__slide-content .customheight {
+  height: 150px;
+}
+
+.embla__slide:not(.is-focused) .embla__slide-content h1 {
+  font-size: 11px;
+}
+
+.embla__slide:not(.is-focused) .embla__slide-content p {
+  font-size: 9px;
+}
+
+.embla__slide img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+
+
+.react-datepicker-wrapper{
+  width: 100% !important;
+}

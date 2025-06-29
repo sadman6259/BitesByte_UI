@@ -1,0 +1,6 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/scopeman/public_html/my.bitesbyte.com
+    - /bin/cp -r out/* $DEPLOYPATH
+    - /bin/cp * $DEPLOYPATH
