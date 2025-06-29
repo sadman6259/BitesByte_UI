@@ -6,15 +6,12 @@ import { useAtom } from "jotai";
 import { cartAtom } from "../store/menuQuantityStore";
 import Link from "next/link";
 import ChooseMenuModal from "./ChooseMenuModal";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Login from "./Login";
 import {
   Menu,
   X,
   ShoppingCart,
-  User,
-  ChevronDown,
-  ChevronUp,
   ChevronRight,
   Info,
   Camera,
@@ -27,14 +24,13 @@ export default function Navbar() {
   const router = useRouter();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isChooseMenuModalOpen, setIsChooseMenuModalOpen] = useState(false);
-  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  //const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const [cart] = useAtom(cartAtom);
   const [totalCartItems, setTotalCartItems] = useState(0);
   const [showEmptyCartModal, setShowEmptyCartModal] = useState(false);
-  const pathname = usePathname();
 
   // Update total items in cart whenever cart changes
   useEffect(() => {
@@ -60,7 +56,7 @@ export default function Navbar() {
 
     localStorage.removeItem("token");
     setIsLoggedIn(false);
-    setShowUserDropdown(false);
+    // setShowUserDropdown(false);
     window.location.href = "/";
   };
 
@@ -132,51 +128,7 @@ export default function Navbar() {
               Login
             </span>
           ) : (
-            <div className="relative">
-              {/* <button
-                onClick={() => setShowUserDropdown(!showUserDropdown)}
-                className="flex items-center space-x-1 text-customGreen hover:text-green-700 transition-colors"
-              >
-                <User className="w-5 h-5" />
-                {showUserDropdown ? (
-                  <ChevronUp className="w-4 h-4" />
-                ) : (
-                  <ChevronDown className="w-4 h-4" />
-                )}
-              </button> */}
-
-              {/* User Dropdown */}
-              {/* {showUserDropdown && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg overflow-hidden z-50 border border-gray-100">
-                  <ul className="py-1">
-                    {userDropdownLinks.map((link) => (
-                      <li key={link.href}>
-                        <Link
-                          href={link.href}
-                          className={`block px-4 py-2 text-sm ${
-                            pathname === link.href
-                              ? "bg-customOrange text-white"
-                              : "text-gray-700 hover:bg-gray-100"
-                          }`}
-                          onClick={() => setShowUserDropdown(false)}
-                        >
-                          {link.label}
-                        </Link>
-                      </li>
-                    ))}
-                    <li className="border-t border-gray-100">
-                      <button
-                        onClick={handleLogout}
-                        className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                      >
-                        <LogOut className="w-4 h-4 mr-2" />
-                        Sign Out
-                      </button>
-                    </li>
-                  </ul>
-                </div>
-              )} */}
-            </div>
+            <div className="relative"></div>
           )}
 
           {/* Mobile Menu Button */}

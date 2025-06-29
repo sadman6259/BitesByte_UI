@@ -1,8 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
 import SimpleMenuListBox from "@/app/components/SimpleMenuListBox";
-import { SimpleMenuType } from "@/app/type/SimpleMenuType";
-import SuggestionMenuList from "@/app/components/SuggetionMenuList";
+// import { SimpleMenuType } from "@/app/type/SimpleMenuType";
+// import SuggestionMenuList from "@/app/components/SuggetionMenuList";
 import AddToCartModal from "@/app/components/AddToCartModal";
 
 export default function Simple() {

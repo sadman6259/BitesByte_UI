@@ -3,16 +3,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import Image from "next/image";
-import {
-  X,
-  Eye,
-  EyeOff,
-  Mail,
-  Lock,
-  LogIn,
-  Key,
-  AlertCircle,
-} from "lucide-react";
+import { X, Eye, EyeOff, Mail, Lock, LogIn, AlertCircle } from "lucide-react";
 import bcrypt from "bcryptjs";
 
 function Login({
@@ -71,11 +62,16 @@ function Login({
       setEmail("");
       setPassword("");
       onClose();
-    } catch (error: any) {
-      console.error("Login error:", error);
-      setError(
-        error.response?.data?.message || "Login failed. Please try again."
-      );
+    } catch (err: unknown) {
+      let errorMessage = "Registration failed. Please try again.";
+
+      if (axios.isAxiosError(err)) {
+        errorMessage = err.response?.data?.message || errorMessage;
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

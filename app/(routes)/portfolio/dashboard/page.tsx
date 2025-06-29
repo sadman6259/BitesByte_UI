@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef, useEffect, JSX } from "react";
-import { Chart, registerables } from "chart.js";
+import { Chart, registerables, ChartOptions } from "chart.js";
 import {
   Scale,
   Gauge,
@@ -27,10 +27,22 @@ type ChartType =
   | "polarArea"
   | "bubble";
 
+interface ChartDataset {
+  label?: string;
+  data: number[];
+  backgroundColor?: string | string[];
+  borderColor?: string;
+  tension?: number;
+  fill?: boolean;
+  // Add other dataset properties as needed
+}
 interface ChartConfig {
   type: ChartType;
-  data: any;
-  options?: any;
+  data: {
+    labels: string[];
+    datasets: ChartDataset[];
+  };
+  options?: ChartOptions;
 }
 
 interface DashboardItem {

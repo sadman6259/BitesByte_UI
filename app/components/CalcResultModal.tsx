@@ -2,11 +2,11 @@ import { CrossIcon } from "./Icons";
 
 export default function CalcResultModal({
   calcResultModalOpen,
-  setcalcResultModalOpen,
+  setCalcResultModalOpen,
   setPlanModalOpen,
 }: {
   calcResultModalOpen: boolean;
-  setcalcResultModalOpen: (open: boolean) => void;
+  setCalcResultModalOpen: (open: boolean) => void;
   setPlanModalOpen: (open: boolean) => void;
 }) {
   if (!calcResultModalOpen) return null;
@@ -16,7 +16,7 @@ export default function CalcResultModal({
       <div className="bg-customBeige p-6 rounded-lg shadow-lg w-1/2 relative">
         <button
           className="absolute top-2 right-5 text-black-500"
-          onClick={() => setcalcResultModalOpen(false)}
+          onClick={() => setCalcResultModalOpen(false)}
         >
           <CrossIcon />
         </button>
@@ -77,7 +77,7 @@ export default function CalcResultModal({
               <button
                 className="px-8 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
                 onClick={() => {
-                  setcalcResultModalOpen(false);
+                  setCalcResultModalOpen(false);
                   setPlanModalOpen(true);
                 }}
               >

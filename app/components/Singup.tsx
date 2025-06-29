@@ -12,7 +12,6 @@ import {
   Clock,
   AlertTriangle,
   Check,
-  ChevronDown,
 } from "lucide-react";
 import { useAtom } from "jotai";
 import {
@@ -25,8 +24,11 @@ import {
 } from "./store";
 import axios from "axios";
 import bcrypt from "bcryptjs";
-
-function Signup({ onClose, plan }: { onClose: () => void; plan?: any }) {
+interface Plan {
+  title: string;
+  // Add other plan properties as needed
+}
+function Signup({ onClose }: { onClose: () => void; plan?: Plan }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -178,11 +180,16 @@ function Signup({ onClose, plan }: { onClose: () => void; plan?: any }) {
           "Account created but auto-login failed. Please login manually."
         );
       }
-    } catch (err: any) {
-      console.error("Registration error:", err);
-      setError(
-        err.response?.data?.message || "Registration failed. Please try again."
-      );
+    } catch (err: unknown) {
+      let errorMessage = "Registration failed. Please try again.";
+
+      if (axios.isAxiosError(err)) {
+        errorMessage = err.response?.data?.message || errorMessage;
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -366,7 +373,7 @@ function Signup({ onClose, plan }: { onClose: () => void; plan?: any }) {
               </div>
               {confirmPassword && password !== confirmPassword && (
                 <p className="mt-1 text-sm text-red-600">
-                  Passwords don't match
+                  Passwords do not match
                 </p>
               )}
             </div>
@@ -386,9 +393,7 @@ function Signup({ onClose, plan }: { onClose: () => void; plan?: any }) {
                 <Scale className="w-5 h-5 text-customOrange" />
                 Weight Goals
               </h3>
-              <div className="text-sm text-customGray mb-2">
-                Selected Plan: {plan.title}
-              </div>
+
               <div className="space-y-4">
                 <div>
                   <div className="flex justify-between items-center mb-2">

@@ -6,7 +6,7 @@ import PlansModal from "../components/PlansModal";
 
 export default function Homepage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [calcResultModalOpen, setCalcResultModalOpen] = useState(false);
+  const [, setCalcResultModalOpen] = useState(false);
   const [planModalOpen, setPlanModalOpen] = useState(false);
 
   return (
@@ -17,7 +17,7 @@ export default function Homepage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         setPlanModalOpen={setPlanModalOpen}
-        setcalcResultModalOpen={setCalcResultModalOpen}
+        setCalcResultModalOpen={setCalcResultModalOpen}
       />
 
       {planModalOpen && (

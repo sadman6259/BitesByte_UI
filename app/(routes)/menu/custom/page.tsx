@@ -5,12 +5,32 @@ import SuggestionMenuListForCustom from "@/app/components/SuggestionMenuListForC
 import Autoplay from "embla-carousel-autoplay";
 import useEmblaCarousel from "embla-carousel-react";
 import { useState, useEffect } from "react";
-// import {CrossIcon} from "@/app/components/Icons";
-// import Image from "next/image";
 import AddToCartModal from "@/app/components/AddToCartModal";
 import { useAtom } from "jotai";
 import { cartAtom } from "@/app/store/menuQuantityStore";
-import SuggestionMenuList from "@/app/components/SuggetionMenuList";
+
+interface MenuItem {
+  id: number;
+  name: string;
+  totalCalories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  category: string;
+  image: string;
+  price: number;
+  plan: string;
+  pricePerGram: number;
+  subcategories: string;
+  weekNumber: number;
+  menuName: string;
+  [key: string]: string | number | unknown;
+}
+
+// interface CartItem {
+//   menu: MenuItem;
+//   quantity: number;
+// }
 
 const bgImage = [
   "/img/slide-bg-one.jpg",
@@ -22,73 +42,81 @@ const bgImage = [
 
 const CustomMenu = () => {
   const [desiredCalories, setDesiredCalories] = useState<number>(0);
-  // const [selectedCalories] = useState<number>(0);
   const [selectedCalories, setSelectedCalories] = useState<number>(0);
   const [remainingCalories, setRemainingCalories] = useState<number>(0);
   const [showCaloriesModal, setShowCaloriesModal] = useState(false);
   const [showProteinModal, setShowProteinModal] = useState(false);
-  const [isDesiredCaloriesPage, setIsDesiredCaloriesPage] = useState(true);
   const [emblaRef] = useEmblaCarousel({ loop: true }, [Autoplay()]);
   const [showAddToCartModal, setShowAddToCartModal] = useState<boolean>(false);
   const [cart, setCart] = useAtom(cartAtom);
-  const [suggestionProteinMenu, setSuggestionProteinMenu] = useState([]);
-  const [suggestionCarbMenu, setSuggestionCarbMenu] = useState([]);
-  const [allProteinMenus, setAllProteinMenu] = useState([]);
-  const [allCarbsMenus, setAllCarbsMenu] = useState([]);
-  const [caloriesError, SetCaloriesError] = useState(false);
-  // console.log("True Desired Calories Page", showAddToCartModal);
-  //protein and carbs
-  // protein
+  const [suggestionProteinMenu, setSuggestionProteinMenu] = useState<
+    MenuItem[]
+  >([]);
+  const [suggestionCarbMenu, setSuggestionCarbMenu] = useState<MenuItem[]>([]);
+  const [allProteinMenus, setAllProteinMenu] = useState<MenuItem[]>([]);
+  const [allCarbsMenus, setAllCarbsMenu] = useState<MenuItem[]>([]);
+  const [caloriesError, setCaloriesError] = useState(false);
   const [desiredProtein, setDesiredProtein] = useState<number>(0);
-  const [selectedProtein, setSelectedProtein] = useState<number>(0);
-  // const [remainingProtein, setRemainingProtein] = useState<number>(0);
-
-  // carbs
   const [desiredCarb, setDesiredCarb] = useState<number>(0);
-  const [selectedCarb, setSelectedCarb] = useState<number>(0);
-
-  const [isProtein, setIsProtein] = useState(true);
-  const [isCarb, setIsCarb] = useState(true);
+  const [desiredCaloriesMenu, setDesiredCaloriesMenu] = useState<MenuItem[]>(
+    []
+  );
+  const [getStandardMenus, setStandardMenus] = useState<MenuItem[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     let totalCalories = 0;
-    let totalProtein = 0;
-    let totalCarbs = 0;
 
     cart.forEach((item) => {
       const quantity = item.quantity;
       const menu = item.menu;
 
       if (menu.subcategories === "Protein") {
-        totalProtein += quantity * (menu.protein || 0);
+        // Calculate protein if needed later
       } else if (menu.subcategories === "Carbs") {
-        totalCarbs += quantity * (menu.carbs || 0);
+        // Calculate carbs if needed later
       } else {
         totalCalories += quantity * (menu.totalCalories || 0);
       }
     });
 
-    // Round the values to 2 decimal places
-    totalCalories = parseFloat(totalCalories.toFixed(2));
-    totalProtein = parseFloat(totalProtein.toFixed(2));
-    totalCarbs = parseFloat(totalCarbs.toFixed(2));
-
-    setSelectedCalories(totalCalories);
-    setSelectedProtein(totalProtein);
-    setSelectedCarb(totalCarbs);
+    setSelectedCalories(parseFloat(totalCalories.toFixed(2)));
   }, [cart]);
 
-  const [desiredCaloriesMenu, setDesiredCaloriesMenu] = useState([]);
+  useEffect(() => {
+    setRemainingCalories(Number(desiredCalories) - Number(selectedCalories));
+  }, [selectedCalories, desiredCalories]);
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_BITESBYTE_API_URL}/getavailablemenus`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data: MenuItem[]) => {
+        const standard = data.filter((item) => item.category === "standard");
+        setStandardMenus(standard);
+      })
+      .catch((error) => {
+        console.error("Error fetching menus:", error);
+      });
+  }, []);
+
   const onSubmitCalories = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // console.log("Desired Calories", desiredCalories, typeof desiredCalories);
     if (desiredCalories < 250 || desiredCalories > 10000) {
-      SetCaloriesError(true);
+      setCaloriesError(true);
       return;
     }
     setShowCaloriesModal(true);
 
-    //recommend menus for desired calories
     fetch(
       `${process.env.NEXT_PUBLIC_BITESBYTE_API_URL}/getRecommendedMenuByCalorie`,
       {
@@ -106,7 +134,7 @@ const CustomMenu = () => {
         }
         return response.json();
       })
-      .then((data) => {
+      .then((data: MenuItem[]) => {
         setDesiredCaloriesMenu(data);
       })
       .catch((error) => {
@@ -114,59 +142,15 @@ const CustomMenu = () => {
       });
   };
 
-  //set show warning modal
-  const [showWarningModal, setShowWarningModal] = useState(false);
   const resetButton = () => {
     setSelectedCalories(0);
-    setSelectedProtein(0);
-    setSelectedCarb(0);
     setCart([]);
   };
-
-  useEffect(() => {
-    setRemainingCalories(Number(desiredCalories) - Number(selectedCalories));
-    if (selectedCalories - 50 > desiredCalories) {
-      setShowWarningModal(true);
-    } else {
-      setShowWarningModal(false);
-    }
-  }, [selectedCalories, desiredCalories]);
-
-  // Get Standard Menus and Macro Menus
-  const [getStandardMenus, setStandardMenus] = useState([]);
-  const [getMacroMenus, setMicroMenus] = useState([]);
-  useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_BITESBYTE_API_URL}/getavailablemenus`, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-      },
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then((data) => {
-        const standard = data.filter(
-          (item: any) => item.category === "standard"
-        );
-        const micro = data.filter((item: any) => item.category === "macro");
-
-        setStandardMenus(standard);
-        setMicroMenus(micro);
-      })
-      .catch((error) => {
-        console.error("Error fetching menus:", error);
-      });
-  }, []);
 
   const onSubmitProtein = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setShowProteinModal(true);
 
-    // Recommend menu for desired protein
     fetch(
       `${process.env.NEXT_PUBLIC_BITESBYTE_API_URL}/getRecommendedMenuByProtein?protein=${desiredProtein}`,
       {
@@ -182,10 +166,10 @@ const CustomMenu = () => {
         }
         return response.json();
       })
-      .then((data) => {
+      .then((data: MenuItem[]) => {
         setDesiredCaloriesMenu(data);
         const proteinMenus = data.filter(
-          (item: any) => item.subcategories === "Protein"
+          (item) => item.subcategories === "Protein"
         );
         setSuggestionProteinMenu(proteinMenus);
       })
@@ -193,7 +177,6 @@ const CustomMenu = () => {
         console.error("Error fetching menus:", error);
       });
 
-    // Recommend menu for desired carbs
     fetch(
       `${process.env.NEXT_PUBLIC_BITESBYTE_API_URL}/getRecommendedMenuByCarbs?carbs=${desiredCarb}`,
       {
@@ -209,19 +192,15 @@ const CustomMenu = () => {
         }
         return response.json();
       })
-      .then((data) => {
+      .then((data: MenuItem[]) => {
         setDesiredCaloriesMenu(data);
-        const carbMenus = data.filter(
-          (item: any) => item.subcategories === "Carbs"
-        );
-
+        const carbMenus = data.filter((item) => item.subcategories === "Carbs");
         setSuggestionCarbMenu(carbMenus);
       })
       .catch((error) => {
         console.error("Error fetching menus:", error);
       });
 
-    //==========
     fetch(`${process.env.NEXT_PUBLIC_BITESBYTE_API_URL}/getavailablemenus`, {
       method: "GET",
       headers: {
@@ -234,14 +213,13 @@ const CustomMenu = () => {
         }
         return response.json();
       })
-      .then((data) => {
+      .then((data: MenuItem[]) => {
         const allProteinMenu = data.filter(
-          (item: any) =>
+          (item) =>
             item.category === "macro" && item.subcategories === "Protein"
         );
         const allCarbsMenu = data.filter(
-          (item: any) =>
-            item.category === "macro" && item.subcategories === "Carbs"
+          (item) => item.category === "macro" && item.subcategories === "Carbs"
         );
         setAllProteinMenu(allProteinMenu);
         setAllCarbsMenu(allCarbsMenu);
@@ -250,19 +228,6 @@ const CustomMenu = () => {
         console.error("Error fetching menus:", error);
       });
   };
-
-  const onClickDesiredCalories = () => {
-    setShowCaloriesModal(false);
-    setIsDesiredCaloriesPage(true);
-  };
-
-  const onClickDesiredProtein = () => {
-    setShowCaloriesModal(false);
-    setIsDesiredCaloriesPage(false);
-    setShowProteinModal(false);
-  };
-
-  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -277,10 +242,9 @@ const CustomMenu = () => {
   return (
     <div className="bg-customBeige text-customGray">
       <div className=" h-[calc(100vh-111px)]">
-        {isDesiredCaloriesPage && showCaloriesModal && (
+        {showCaloriesModal && (
           <div className="w-full flex flex-col items-center lg:items-start lg:px-2 mt-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
-              {/* Card 1: Desired Calories */}
               <div className="border-2 justify-center border-customGreen rounded-lg bg-white p-4 flex flex-col items-center">
                 <h4 className="text-sm font-bold text-customGray mb-1">
                   DESIRED CALORIES
@@ -293,7 +257,6 @@ const CustomMenu = () => {
                 </span>
               </div>
 
-              {/* Card 2: Selected Calories */}
               <div className="border-2 justify-center border-customGreen rounded-lg bg-white p-4 flex flex-col items-center">
                 <h4 className="text-sm font-bold text-customGray mb-1">
                   SELECTED CALORIES
@@ -319,7 +282,6 @@ const CustomMenu = () => {
                 </span>
               </div>
 
-              {/* Card 3: Remaining Calories */}
               <div className="border-2 justify-center border-customGreen rounded-lg bg-white p-4 flex flex-col items-center">
                 <h4 className="text-sm font-bold text-customGray mb-1">
                   REMAINING CALORIES
@@ -339,7 +301,7 @@ const CustomMenu = () => {
           </div>
         )}
 
-        {isDesiredCaloriesPage ? (
+        {!showProteinModal ? (
           showCaloriesModal ? (
             <div className="w-full bg-white flex flex-col">
               <div className=" w-full p-2 pb-1">
@@ -348,7 +310,6 @@ const CustomMenu = () => {
                     <h5 className="text-customOrange text-sm font-bold mb-2">
                       RECOMMEND MENU FOR {desiredCalories} KCAL
                     </h5>
-                    {/* <SuggestionMenuList items={desiredCaloriesMenu} setShowAddToCart={setShowAddToCartModal} /> */}
                     <SuggestionMenuListForCustom
                       items={desiredCaloriesMenu}
                       setShowAddToCart={setShowAddToCartModal}
@@ -369,16 +330,11 @@ const CustomMenu = () => {
                       setShowAddToCart={setShowAddToCartModal}
                     />
                   </div>
-                  {/* <div className="relative mt-4">
-                    <h5 className="text-transparent text-base font-bold mb-2">MACRO MENU</h5>
-                    <SimpleMenuListBox items={getMacroMenus} row={1} col={3} setShowAddToCart={setShowAddToCartModal} />
-                  </div> */}
                 </div>
               </div>
             </div>
           ) : (
             <div className="w-full h-screen relative overflow-hidden">
-              {/* Background Slider */}
               <div className="absolute inset-0 h-full" ref={emblaRef}>
                 <div className="flex h-full">
                   {bgImage.map((image, index) => (
@@ -444,32 +400,21 @@ const CustomMenu = () => {
                   <h5 className="text-customOrange text-sm font-bold mb-2">
                     RECOMMEND MENU FOR {desiredProtein}G PROTEIN
                   </h5>
-
                   <SuggestionMenuListForCustom
                     items={suggestionProteinMenu}
                     setShowAddToCart={setShowAddToCartModal}
-                    isProtein={isProtein}
                   />
                 </div>
               </div>
             </div>
             <div className="w-full p-2 pt-1 h-72">
-              <div
-                className={`border-2 overflow-hidden ${
-                  isProtein ? "border-customOrange" : "border-customGreen"
-                } rounded-md h-full bg-customBeige flex-col p-2`}
-              >
+              <div className="border-2 border-customOrange rounded-md h-full bg-customBeige flex-col p-2">
                 <div className="relative mb-1">
-                  <h5
-                    className={`${
-                      isProtein ? "text-customOrange" : "text-customGreen"
-                    } text-base font-bold mb-2`}
-                  >
+                  <h5 className="text-customOrange text-base font-bold mb-2">
                     OUR PROTEIN MENU
                   </h5>
                   <SimpleMenuListBox
                     items={allProteinMenus}
-                    isProtein={isProtein}
                     row={isMobile ? 1 : 3}
                     col={isMobile ? 1 : 3}
                     setShowAddToCart={setShowAddToCartModal}
@@ -483,26 +428,21 @@ const CustomMenu = () => {
                   <h5 className="text-customGreen text-sm font-bold mb-2">
                     RECOMMEND MENU FOR {desiredCarb}G CARB
                   </h5>
-
                   <SuggestionMenuListForCustom
                     items={suggestionCarbMenu}
                     setShowAddToCart={setShowAddToCartModal}
-                    isCarb={isCarb}
                   />
                 </div>
               </div>
             </div>
             <div className="w-full p-2 pt-1 h-72">
-              <div
-                className={`border-2 overflow-hidden border-customGreen rounded-md h-full bg-customBeige flex-col p-2`}
-              >
+              <div className="border-2 border-customGreen rounded-md h-full bg-customBeige flex-col p-2">
                 <div className="relative mb-1">
-                  <h5 className={`text-customGreen text-base font-bold mb-2`}>
+                  <h5 className="text-customGreen text-base font-bold mb-2">
                     OUR CARB MENU
                   </h5>
                   <SimpleMenuListBox
                     items={allCarbsMenus}
-                    isCarb={isCarb}
                     row={isMobile ? 1 : 3}
                     col={isMobile ? 1 : 3}
                     setShowAddToCart={setShowAddToCartModal}
@@ -582,41 +522,6 @@ const CustomMenu = () => {
           </div>
         )}
       </div>
-      {/* it is warning about a calories more starts */}
-      {/* {showWarningModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white p-6 rounded-md shadow-md w-[300px] text-center">
-            <h2 className="text-lg font-bold text-customOrange mb-4">
-              Warning!!!
-            </h2>
-            <p className="text-sm text-gray-700">
-              Your selected calories have exceeded the desired amount.
-            </p>
-            <button
-              onClick={() => setShowWarningModal(false)}
-              className="mt-4 px-4 py-2 bg-red-600 text-white rounded"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )} */}
-
-      {/* {showProteinWarningModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white p-6 rounded-md shadow-md w-[300px] text-center">
-            <h2 className="text-lg font-bold text-customOrange mb-4">Warning!!!</h2>
-            <p className="text-sm text-gray-700">Your selected protein have exceeded the desired amount.</p>
-            <button
-              onClick={() => setShowProteinWarningModal(false)}
-              className="mt-4 px-4 py-2 bg-red-600 text-white rounded"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )} */}
-      {/* it is warning about a calories more ends */}
       {showAddToCartModal && (
         <AddToCartModal setAddToCartModal={setShowAddToCartModal} />
       )}

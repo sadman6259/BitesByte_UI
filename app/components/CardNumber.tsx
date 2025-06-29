@@ -1,6 +1,6 @@
 import React, { useState, ChangeEvent, useEffect, useRef } from "react";
 import cardValidator from "card-validator";
-
+import Image from "next/image";
 type CardType = "visa" | "mastercard" | "amex" | null;
 
 interface CardDetails {
@@ -123,7 +123,7 @@ const CardInput: React.FC<CardInputProps> = ({
   };
 
   const handleExpiryInput = (e: ChangeEvent<HTMLInputElement>) => {
-    let raw = e.target.value.replace(/\D/g, "").slice(0, 4);
+    const raw = e.target.value.replace(/\D/g, "").slice(0, 4);
     let formatted = raw;
     if (raw.length > 2) {
       formatted = `${raw.slice(0, 2)}/${raw.slice(2)}`;
@@ -213,8 +213,10 @@ const CardInput: React.FC<CardInputProps> = ({
             }`}
           />
           {cardType && (
-            <img
+            <Image
               src={getCardLogo(cardType)!}
+              width={22}
+              height={22}
               alt={cardType}
               className="absolute top-1/2 -translate-y-1/2 right-3 w-10 h-auto"
             />

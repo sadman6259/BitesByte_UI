@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import CardInput from "../../components/CardNumber";
 import axios from "axios";
-import dynamic from "next/dynamic";
+//import dynamic from "next/dynamic";
 import DatePicker from "react-datepicker";
 
 // Dynamically import DatePicker to avoid SSR issues
@@ -119,15 +119,14 @@ const Cart = () => {
     });
     setSelectedPayment(null);
   };
-
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  useEffect(() => {
-    setIsLoggedIn(!!localStorage.getItem("userEmail"));
-  }, []);
-
+  type PaymentInfo = {
+    id: number;
+    cardNo: string;
+    expiryDate: string;
+    cvv: string;
+  };
   // Add this to your existing state declarations
-  const [userPaymentInfo, setUserPaymentInfo] = useState<any[]>([]);
+  const [userPaymentInfo, setUserPaymentInfo] = useState<PaymentInfo[]>([]);
   const [loadingPaymentInfo, setLoadingPaymentInfo] = useState(false);
   const fetchUserPaymentInfo = async (userId: number) => {
     setLoadingPaymentInfo(true);

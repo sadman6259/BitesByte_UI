@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import Image from "next/image";
 import {
   Instagram,
   Facebook,
@@ -122,7 +123,7 @@ export default function MediaPage() {
                       </svg>
                     </div>
                   </div>
-                  <img
+                  <Image
                     src={`https://img.youtube.com/vi/${item.src
                       .split("/")
                       .pop()}/hqdefault.jpg`}
@@ -131,7 +132,7 @@ export default function MediaPage() {
                   />
                 </div>
               ) : (
-                <img
+                <Image
                   src={item.src}
                   alt={item.title}
                   className="w-full h-64 object-cover"
@@ -181,7 +182,7 @@ export default function MediaPage() {
                 ></iframe>
               </div>
             ) : (
-              <img
+              <Image
                 src={selectedMedia.src}
                 alt={selectedMedia.title}
                 className="w-full h-auto max-h-[80vh] object-contain mx-auto"
@@ -302,9 +303,7 @@ export default function MediaPage() {
                   </svg>
                 ))}
               </div>
-              <p className="text-customGray italic mb-4">
-                "{testimonial.quote}"
-              </p>
+              <p className="text-customGray italic mb-4">{testimonial.quote}</p>
               <div>
                 <p className="font-bold text-customGreen">
                   {testimonial.author}

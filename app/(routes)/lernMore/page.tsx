@@ -15,8 +15,9 @@ export default function LearnMorePage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         setPlanModalOpen={setPlanModalOpen}
-        setcalcResultModalOpen={setCalcResultModalOpen}
+        setCalcResultModalOpen={setCalcResultModalOpen}
       />
+      <p className="hidde">{calcResultModalOpen}</p>
       {planModalOpen && (
         <PlansModal
           planModalOpen={planModalOpen}

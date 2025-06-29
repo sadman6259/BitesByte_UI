@@ -15,7 +15,7 @@ import {
 type Props = {
   isOpen: boolean;
   onClose: () => void;
-  setcalcResultModalOpen: (open: boolean) => void;
+  setCalcResultModalOpen: (open: boolean) => void;
   setPlanModalOpen: (open: boolean) => void;
 };
 
@@ -31,7 +31,7 @@ type ActivityLevel =
 export default function Modal({
   isOpen,
   onClose,
-  setcalcResultModalOpen,
+  setCalcResultModalOpen,
   setPlanModalOpen,
 }: Props) {
   const [step, setStep] = useState(1);
@@ -106,7 +106,7 @@ export default function Modal({
   };
 
   const calcResult = () => {
-    setcalcResultModalOpen(true);
+    setCalcResultModalOpen(true);
     onClose();
   };
 

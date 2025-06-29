@@ -3,13 +3,27 @@ import React, { useState, useEffect, useCallback } from "react";
 import CardInput from "../../../components/CardNumber";
 import { Pencil, Trash2, Plus } from "lucide-react";
 import axios from "axios";
+import { LoadingSpinner } from "../../../components/LoadingSpinner";
 
+// Define all types at the top
 type Card = {
   id: number;
   number: string;
   expiry: string;
   cvv: string;
 };
+
+interface ApiCard {
+  id: number;
+  cardNo: string;
+  expiryDate: string;
+  cvv: string;
+}
+
+interface UserResponse {
+  id: number;
+  // Add other user properties if needed
+}
 
 export default function MoneyPage() {
   const [cards, setCards] = useState<Card[]>([]);
@@ -30,7 +44,7 @@ export default function MoneyPage() {
         throw new Error("User email not found");
       }
 
-      const userResponse = await axios.get(
+      const userResponse = await axios.get<UserResponse>(
         `${
           process.env.NEXT_PUBLIC_BITESBYTE_API_URL
         }/getuserbyemail?email=${encodeURIComponent(userEmail)}`
@@ -38,11 +52,11 @@ export default function MoneyPage() {
       const fetchedUserId = userResponse.data.id;
       setUserId(fetchedUserId);
 
-      const cardsResponse = await axios.get(
+      const cardsResponse = await axios.get<ApiCard[]>(
         `${process.env.NEXT_PUBLIC_BITESBYTE_API_URL}/getuserpaymentinfolistbyuserid?userid=${fetchedUserId}`
       );
 
-      const formattedCards = cardsResponse.data.map((card: any) => ({
+      const formattedCards = cardsResponse.data.map((card) => ({
         id: card.id,
         number: card.cardNo || "",
         expiry: card.expiryDate || "",
@@ -94,7 +108,7 @@ export default function MoneyPage() {
         setCards(updatedCards);
       } else {
         // Add new card
-        const response = await axios.post(
+        const response = await axios.post<{ id: number }>(
           `${process.env.NEXT_PUBLIC_BITESBYTE_API_URL}/insertuserpaymentinfo`,
           {
             userId: userId,
@@ -128,14 +142,13 @@ export default function MoneyPage() {
       const cardToRemove = cards[index];
       await axios({
         method: "post",
-        url: `${process.env.NEXT_PUBLIC_BITESBYTE_API_URL}//delteuserpaymentinfo`,
+        url: `${process.env.NEXT_PUBLIC_BITESBYTE_API_URL}/delteuserpaymentinfo`,
         data: cardToRemove.id,
         headers: {
           "Content-Type": "application/json",
         },
       });
 
-      // Rest of the code remains the same
       const updated = [...cards];
       updated.splice(index, 1);
       setCards(updated);
@@ -169,6 +182,8 @@ export default function MoneyPage() {
 
   return (
     <div className="min-h-screen bg-customBeige p-6">
+      <LoadingSpinner isLoading={isLoading || isSubmitting} />
+
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-customGreen mb-2">
@@ -238,7 +253,9 @@ export default function MoneyPage() {
             </div>
           ) : cards.length === 0 && !showForm ? (
             <div className="bg-white p-6 rounded-xl shadow-sm text-center">
-              <p className="text-customGray">You haven't added any cards yet</p>
+              <p className="text-customGray">
+                You have not added any cards yet
+              </p>
             </div>
           ) : null}
 

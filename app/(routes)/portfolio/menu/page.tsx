@@ -5,10 +5,40 @@ import SuggestionMenuListForCustom from "@/app/components/SuggestionMenuListForC
 import AddToCartModal from "@/app/components/AddToCartModal";
 import { useAtom } from "jotai";
 import { cartAtom } from "@/app/store/menuQuantityStore";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Edit2, Save, X, AlertTriangle } from "lucide-react";
-import { Chart, registerables } from "chart.js";
+import { Chart, registerables, TooltipItem } from "chart.js";
 import { Doughnut } from "react-chartjs-2";
+
+// Define types
+interface MenuItem {
+  id: number;
+  name: string;
+  totalCalories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  category: string;
+  image: string;
+  price: number;
+  plan: string;
+  pricePerGram: number;
+  subcategories: string;
+  weekNumber: number;
+  menuName: string;
+  [key: string]: string | number | unknown;
+}
+
+interface NutrientValues {
+  current: number;
+  target: number;
+}
+
+interface Nutrients {
+  protein: NutrientValues;
+  carbs: NutrientValues;
+  fat: NutrientValues;
+}
 
 // Register Chart.js components
 Chart.register(...registerables);
@@ -18,12 +48,14 @@ const Menu = () => {
   const [selectedCalories, setSelectedCalories] = useState<number>(0);
   const [remainingCalories, setRemainingCalories] = useState<number>(0);
   const [showAddToCartModal, setShowAddToCartModal] = useState<boolean>(false);
-  const [cart, setCart] = useAtom(cartAtom);
-  const [desiredCaloriesMenu, setDesiredCaloriesMenu] = useState<any[]>([]);
-  const [getStandardMenus, setStandardMenus] = useState<any[]>([]);
+  const [cart] = useAtom(cartAtom);
+  const [desiredCaloriesMenu, setDesiredCaloriesMenu] = useState<MenuItem[]>(
+    []
+  );
+  const [getStandardMenus, setStandardMenus] = useState<MenuItem[]>([]);
   const [caloriesError, setCaloriesError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [nutrients, setNutrients] = useState({
+  const [nutrients, setNutrients] = useState<Nutrients>({
     protein: { current: 0, target: 0 },
     carbs: { current: 0, target: 0 },
     fat: { current: 0, target: 0 },
@@ -35,7 +67,7 @@ const Menu = () => {
     null
   );
 
-  const formatNumber = (num: number) => {
+  const formatNumber = (num: number): string => {
     return num % 1 === 0 ? num.toString() : num.toFixed(1);
   };
 
@@ -79,31 +111,35 @@ const Menu = () => {
 
   // Fetch standard menus
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_BITESBYTE_API_URL}/getavailablemenus`, {
-      method: "GET",
-      headers: { Accept: "application/json" },
-    })
-      .then((response) => {
+    const fetchStandardMenus = async () => {
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_BITESBYTE_API_URL}/getavailablemenus`,
+          {
+            method: "GET",
+            headers: { Accept: "application/json" },
+          }
+        );
+
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        return response.json();
-      })
-      .then((data) => {
-        setStandardMenus(
-          data.filter((item: any) => item.category === "standard")
-        );
-      })
-      .catch((error) => {
+
+        const data: MenuItem[] = await response.json();
+        setStandardMenus(data.filter((item) => item.category === "standard"));
+      } catch (error) {
         console.error("Error fetching menus:", error);
         setRecommendationError(
           "Failed to load menu data. Please try again later."
         );
-      });
+      }
+    };
+
+    fetchStandardMenus();
   }, []);
 
   // Fetch recommended menus when desired calories is set
-  const fetchRecommendedMeals = async () => {
+  const fetchRecommendedMeals = useCallback(async () => {
     if (!desiredCalories || desiredCalories < 250 || desiredCalories > 10000) {
       setRecommendationError(
         "Please set a valid calorie target between 250-10000"
@@ -127,7 +163,6 @@ const Menu = () => {
             Accept: "application/json",
           },
           body: JSON.stringify(desiredCalories),
-
           signal: controller.signal,
         }
       );
@@ -141,25 +176,27 @@ const Menu = () => {
         );
       }
 
-      const data = await response.json();
+      const data: MenuItem[] = await response.json();
       if (!Array.isArray(data)) {
         throw new Error("Invalid data format received from server");
       }
 
       setDesiredCaloriesMenu(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching recommended meals:", error);
       let errorMessage = "Failed to load recommended meals.";
 
-      if (error.name === "AbortError") {
-        errorMessage = "Request timed out. Please try again.";
-      } else if (error.message.includes("400")) {
-        errorMessage = "Invalid request. Please check your calorie target.";
-      } else if (error.message.includes("Failed to fetch")) {
-        errorMessage =
-          "Could not connect to the server. Please check your connection.";
-      } else if (error.message) {
-        errorMessage = error.message;
+      if (error instanceof Error) {
+        if (error.name === "AbortError") {
+          errorMessage = "Request timed out. Please try again.";
+        } else if (error.message.includes("400")) {
+          errorMessage = "Invalid request. Please check your calorie target.";
+        } else if (error.message.includes("Failed to fetch")) {
+          errorMessage =
+            "Could not connect to the server. Please check your connection.";
+        } else {
+          errorMessage = error.message;
+        }
       }
 
       setRecommendationError(errorMessage);
@@ -167,12 +204,12 @@ const Menu = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [desiredCalories]);
 
   // Initial fetch when component mounts or desiredCalories changes
   useEffect(() => {
     fetchRecommendedMeals();
-  }, [desiredCalories]);
+  }, [desiredCalories, fetchRecommendedMeals]);
 
   const onSubmitCalories = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -213,33 +250,26 @@ const Menu = () => {
   }, []);
 
   const NutrientAnalysis = () => {
-    // Check if all nutrient values are zero or empty
     const isEmptyData =
       nutrients.protein.current === 0 &&
       nutrients.carbs.current === 0 &&
       nutrients.fat.current === 0;
 
-    // Prepare data for the chart
     const chartData = {
       labels: ["Protein", "Carbs", "Fat"],
       datasets: [
         {
           data: isEmptyData
-            ? [1, 1, 1] // Equal values to show full circle when empty
+            ? [1, 1, 1]
             : [
                 nutrients.protein.current,
                 nutrients.carbs.current,
                 nutrients.fat.current,
               ],
           backgroundColor: isEmptyData
-            ? ["#CCCCCC", "#CCCCCC", "#CCCCCC"] // All grey when empty
-            : [
-                "#FF6384", // Protein - pink
-                "#36A2EB", // Carbs - blue
-                "#FFCE56", // Fat - yellow
-              ],
+            ? ["#CCCCCC", "#CCCCCC", "#CCCCCC"]
+            : ["#FF6384", "#36A2EB", "#FFCE56"],
           borderWidth: 0,
-          type: "doughnut" as const,
         },
       ],
     };
@@ -251,12 +281,12 @@ const Menu = () => {
       plugins: {
         legend: {
           position: "bottom" as const,
-          display: !isEmptyData, // Hide legend when data is empty
+          display: !isEmptyData,
         },
         tooltip: {
-          enabled: !isEmptyData, // Disable tooltips when data is empty
+          enabled: !isEmptyData,
           callbacks: {
-            label: function (context: any) {
+            label: function (context: TooltipItem<"doughnut">) {
               const label = context.label || "";
               const value = context.raw || 0;
               return `${label}: ${value}g (current)`;
@@ -272,7 +302,6 @@ const Menu = () => {
           Nutrient Analysis
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Doughnut Chart */}
           <div className="bg-white p-4 rounded-lg shadow-sm border border-customGray/20">
             <div className="h-64 relative">
               <Doughnut data={chartData} options={chartOptions} />
@@ -281,9 +310,6 @@ const Menu = () => {
               {isEmptyData ? "No data available" : "Current vs Target Intake"}
             </div>
           </div>
-
-          {/* Rest of your component remains the same */}
-          {/* Nutrient Details */}
           <div className="space-y-4">
             {Object.entries(nutrients).map(([nutrient, values]) => (
               <div
@@ -324,16 +350,8 @@ const Menu = () => {
 
   const CalorieChart = () => {
     const difference = selectedCalories - desiredCalories;
-
-    // Determine the color based on the difference
-    let consumedColor;
-    if (difference <= 0) {
-      consumedColor = "#ff8f15"; // Orange when under or equal to target
-    } else if (difference <= 50) {
-      consumedColor = "#10B981"; // Green when within 50 over target
-    } else {
-      consumedColor = "#EF4444"; // Red when more than 50 over target
-    }
+    const consumedColor =
+      difference <= 0 ? "#ff8f15" : difference <= 50 ? "#10B981" : "#EF4444";
 
     const chartData = {
       labels: ["Consumed", "Remaining"],
@@ -343,10 +361,7 @@ const Menu = () => {
             selectedCalories,
             Math.max(0, desiredCalories - selectedCalories),
           ],
-          backgroundColor: [
-            consumedColor,
-            "#E5E7EB", // Gray for remaining
-          ],
+          backgroundColor: [consumedColor, "#E5E7EB"],
           borderWidth: 0,
         },
       ],
@@ -359,10 +374,12 @@ const Menu = () => {
       plugins: {
         legend: {
           display: false,
+          position: "bottom" as const,
         },
         tooltip: {
+          enabled: true,
           callbacks: {
-            label: function (context: any) {
+            label: function (context: TooltipItem<"doughnut">) {
               const label = context.label || "";
               const value = context.raw || 0;
               return `${label}: ${value} kcal`;
@@ -375,8 +392,6 @@ const Menu = () => {
     return (
       <div className="relative w-40 h-40 mx-auto">
         <Doughnut data={chartData} options={chartOptions} />
-
-        {/* Center text */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <div className="text-2xl font-bold text-customGray">
             {formatNumber(selectedCalories)}
@@ -388,11 +403,9 @@ const Menu = () => {
   };
 
   return (
-    <div className="bg-customBeige   relative">
-      {/* Calorie Summary */}
+    <div className="bg-customBeige relative">
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <div className="flex flex-col items-center">
-          {/* Header with editable target */}
           <div className="flex items-center mb-4">
             <h2 className="text-md font-bold text-customGray mr-2">
               Daily Target Calories:
@@ -437,11 +450,7 @@ const Menu = () => {
           {caloriesError && (
             <p className="text-red-500 text-sm mb-2">{caloriesError}</p>
           )}
-
-          {/* Circular Calorie Chart */}
           <CalorieChart />
-
-          {/* Remaining Calories */}
           <div className="text-customGray mt-4 text-center">
             <div className="font-medium mb-1">
               {remainingCalories < 0 ? "Sub Lost" : "Remaining Calories"}
@@ -461,17 +470,13 @@ const Menu = () => {
             )}
           </div>
         </div>
-
-        {/* Nutrient Analysis */}
         <NutrientAnalysis />
       </div>
 
-      {/* Recommended Meals */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <h2 className="text-xl font-semibold mb-4 text-customGray">
           Recommended meals
         </h2>
-
         {isLoading ? (
           <div className="text-center py-8">
             <div className="flex justify-center">
@@ -521,10 +526,8 @@ const Menu = () => {
         )}
       </div>
 
-      {/* Today's Menu */}
       <div className="bg-white rounded-lg shadow-md p-6 relative">
-        <h2 className="text-xl font-semibold  text-customGray">Today's Menu</h2>
-
+        <h2 className="text-xl font-semibold text-customGray">Today Menu</h2>
         <SimpleMenuListBox
           items={getStandardMenus}
           row={isMobile ? 1 : 3}
@@ -533,7 +536,6 @@ const Menu = () => {
         />
       </div>
 
-      {/* Initial Calorie Input Form */}
       {!desiredCalories && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center">
           <form

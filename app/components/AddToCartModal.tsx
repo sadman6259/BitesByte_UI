@@ -1,4 +1,3 @@
-import { CrossIcon } from "@/app/components/Icons";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useSelector } from "react-redux";

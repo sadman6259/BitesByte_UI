@@ -31,6 +31,11 @@ interface Address {
 }
 
 const AddressPage: React.FC = () => {
+  const API_BASE_URL = process.env.NEXT_PUBLIC_BITESBYTE_API_URL;
+  if (!API_BASE_URL) {
+    console.error("API base URL is not configured");
+  }
+
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [form, setForm] = useState<
     Omit<Address, "id" | "userId"> & { id: number }
@@ -51,6 +56,23 @@ const AddressPage: React.FC = () => {
   const [success, setSuccess] = useState("");
   const [userId, setUserId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleApiError = (error: unknown): string => {
+    if (axios.isAxiosError(error)) {
+      if (error.response) {
+        return `Server error: ${error.response.status} - ${
+          error.response.data?.message || "Please try again later"
+        }`;
+      } else if (error.request) {
+        return "Network error - please check your internet connection";
+      }
+      return "Request configuration error";
+    }
+    return error instanceof Error
+      ? error.message
+      : "An unexpected error occurred";
+  };
 
   const fetchUserAndAddresses = useCallback(async () => {
     try {
@@ -60,36 +82,48 @@ const AddressPage: React.FC = () => {
 
       const userEmail = localStorage.getItem("userEmail");
       if (!userEmail) {
-        throw new Error("User email not found");
+        throw new Error("User email not found in local storage");
       }
 
-      const userResponse = await axios.get(
-        `${
-          process.env.NEXT_PUBLIC_BITESBYTE_API_URL
-        }/getuserbyemail?email=${encodeURIComponent(userEmail)}`
-      );
+      if (!API_BASE_URL) {
+        throw new Error("API configuration error");
+      }
+
+      // Fetch user ID
+      const userResponse = await axios.get(`${API_BASE_URL}/getuserbyemail`, {
+        params: { email: userEmail },
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!userResponse.data?.id) {
+        throw new Error("User ID not found in response");
+      }
+
       const fetchedUserId = userResponse.data.id;
       setUserId(fetchedUserId);
 
+      // Fetch addresses
       const addressesResponse = await axios.get(
-        `${process.env.NEXT_PUBLIC_BITESBYTE_API_URL}/getuseraddresslistbyuserid?userid=${fetchedUserId}`
+        `${API_BASE_URL}/getuseraddresslistbyuserid`,
+        {
+          params: { userid: fetchedUserId },
+          headers: { "Content-Type": "application/json" },
+        }
       );
 
-      // Sort addresses so default comes first
-      const sortedAddresses = [...addressesResponse.data].sort((a, b) => {
-        if (a.isDefaultAddress) return -1;
-        if (b.isDefaultAddress) return 1;
-        return 0;
-      });
+      // Sort addresses with default first
+      const sortedAddresses = [...addressesResponse.data].sort((a, b) =>
+        a.isDefaultAddress ? -1 : b.isDefaultAddress ? 1 : 0
+      );
 
       setAddresses(sortedAddresses);
     } catch (err) {
-      setError("Failed to load addresses. Please refresh the page.");
-      console.error("Error fetching data:", err);
+      setError(handleApiError(err));
+      console.error("Fetch error:", err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [API_BASE_URL]);
 
   useEffect(() => {
     fetchUserAndAddresses();
@@ -98,8 +132,14 @@ const AddressPage: React.FC = () => {
   const handleChange = (
     e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target;
+    const checked =
+      type === "checkbox" ? (e.target as HTMLInputElement).checked : undefined;
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
   const resetForm = () => {
@@ -120,29 +160,20 @@ const AddressPage: React.FC = () => {
     setSuccess("");
   };
 
-  const validateForm = () => {
-    if (!form.street.trim()) {
-      setError("Street address is required");
-      return false;
+  const validateForm = (): boolean => {
+    const newErrors = [];
+
+    if (!form.street.trim()) newErrors.push("Street address is required");
+    if (!form.city.trim()) newErrors.push("City is required");
+    if (!form.state.trim()) newErrors.push("State is required");
+    if (!form.postCode.trim()) newErrors.push("Post code is required");
+    if (!form.phone.trim()) newErrors.push("Phone number is required");
+    if (form.phone.trim() && !/^\d+$/.test(form.phone)) {
+      newErrors.push("Phone number should contain only digits");
     }
-    if (!form.city.trim()) {
-      setError("City is required");
-      return false;
-    }
-    if (!form.state.trim()) {
-      setError("State is required");
-      return false;
-    }
-    if (!form.postCode.trim()) {
-      setError("Post code is required");
-      return false;
-    }
-    if (!form.phone.trim()) {
-      setError("Phone number is required");
-      return false;
-    }
-    if (!/^\d+$/.test(form.phone)) {
-      setError("Phone number should contain only digits");
+
+    if (newErrors.length > 0) {
+      setError(newErrors.join(". "));
       return false;
     }
     return true;
@@ -150,61 +181,66 @@ const AddressPage: React.FC = () => {
 
   const handleAddOrEdit = async () => {
     if (!validateForm()) return;
-
     if (!userId) {
       setError("User not identified. Please refresh the page.");
       return;
     }
+    if (!API_BASE_URL) {
+      setError("System configuration error");
+      return;
+    }
 
+    setIsSubmitting(true);
     try {
-      setIsLoading(true);
-      if (isEditing) {
-        await axios.post(
-          `${process.env.NEXT_PUBLIC_BITESBYTE_API_URL}/updateuseraddress`,
-          {
-            ...form,
-            userId: userId,
-          }
-        );
-        setSuccess("Address updated successfully");
-      } else {
-        await axios.post(
-          `${process.env.NEXT_PUBLIC_BITESBYTE_API_URL}/insertuseraddress`,
-          {
-            ...form,
-            userId: userId,
-            isDefaultAddress: addresses.length === 0 || form.isDefaultAddress,
-          }
-        );
-        setSuccess("Address added successfully");
-      }
+      const endpoint = isEditing
+        ? `${API_BASE_URL}/updateuseraddress`
+        : `${API_BASE_URL}/insertuseraddress`;
+
+      const payload = {
+        ...form,
+        userId,
+        isDefaultAddress: addresses.length === 0 || form.isDefaultAddress,
+      };
+
+      await axios.post(endpoint, payload, {
+        headers: { "Content-Type": "application/json" },
+      });
+
+      setSuccess(`Address ${isEditing ? "updated" : "added"} successfully`);
       await fetchUserAndAddresses();
-      setTimeout(() => resetForm(), 1500);
+      setTimeout(resetForm, 1500);
     } catch (err) {
-      setError("Failed to save address. Please try again.");
-      console.error("Error saving address:", err);
+      setError(handleApiError(err));
+      console.error("Save error:", err);
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   const handleRemove = async (id: number) => {
+    if (!API_BASE_URL) {
+      setError("System configuration error");
+      return;
+    }
+
+    if (!window.confirm("Are you sure you want to delete this address?")) {
+      return;
+    }
+
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      await axios({
-        method: "post",
-        url: `${process.env.NEXT_PUBLIC_BITESBYTE_API_URL}/delteuseraddress`,
-        data: id,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      await axios.post(
+        `${API_BASE_URL}/deleteuseraddress`,
+        { id },
+        { headers: { "Content-Type": "application/json" } }
+      );
+
       setAddresses((prev) => prev.filter((addr) => addr.id !== id));
       setSuccess("Address deleted successfully");
       setTimeout(() => setSuccess(""), 2000);
     } catch (err) {
-      setError("Failed to delete address. Please try again.");
-      console.error("Error deleting address:", err);
+      setError(handleApiError(err));
+      console.error("Delete error:", err);
     } finally {
       setIsLoading(false);
     }
@@ -218,42 +254,12 @@ const AddressPage: React.FC = () => {
     setSuccess("");
   };
 
-  const handleSetDefault = async (id: number) => {
-    if (!userId) {
-      setError("User not identified");
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_BITESBYTE_API_URL}/getdefaultuseraddressbyuserid`,
-        {
-          params: {
-            userId: userId,
-            addressId: id,
-          },
-        }
-      );
-
-      if (response.data.success) {
-        setSuccess("Default address updated successfully");
-        await fetchUserAndAddresses(); // Refresh the list
-      } else {
-        setError(response.data.message || "Failed to set default address");
-      }
-    } catch (err) {
-      setError("Failed to set default address. Please try again.");
-      console.error("Error:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const toggleForm = () => {
     setShowForm(!showForm);
-    setError("");
-    setSuccess("");
+    if (!showForm) {
+      setError("");
+      setSuccess("");
+    }
   };
 
   const refreshAddresses = async () => {
@@ -267,7 +273,7 @@ const AddressPage: React.FC = () => {
       case "Home":
         return <Home size={18} className="text-customOrange" />;
       case "Work":
-        return <MapPin size={18} className="text-blue-500" />;
+        return <Briefcase size={18} className="text-blue-500" />;
       default:
         return <MapPin size={18} className="text-gray-500" />;
     }
@@ -453,9 +459,7 @@ const AddressPage: React.FC = () => {
                   name="isDefaultAddress"
                   id="isDefaultAddress"
                   checked={form.isDefaultAddress}
-                  onChange={(e) =>
-                    setForm({ ...form, isDefaultAddress: e.target.checked })
-                  }
+                  onChange={handleChange}
                   className="h-4 w-4 text-customOrange focus:ring-customOrange border-gray-300 rounded"
                 />
                 <label
@@ -476,10 +480,10 @@ const AddressPage: React.FC = () => {
               </button>
               <button
                 onClick={handleAddOrEdit}
-                disabled={isLoading}
+                disabled={isSubmitting}
                 className="px-4 py-2 bg-customOrange text-white rounded-lg hover:bg-orange-600 transition-colors flex items-center gap-2 disabled:opacity-70"
               >
-                {isLoading ? (
+                {isSubmitting ? (
                   <>
                     <Loader2 size={18} className="animate-spin" /> Processing...
                   </>
@@ -554,13 +558,7 @@ const AddressPage: React.FC = () => {
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div className="space-y-2 flex-1">
                       <div className="flex items-center gap-3">
-                        {addr.addressType === "Home" ? (
-                          <Home size={18} className="text-customOrange" />
-                        ) : addr.addressType === "Work" ? (
-                          <Briefcase size={18} className="text-blue-500" />
-                        ) : (
-                          <MapPin size={18} className="text-gray-500" />
-                        )}
+                        {getAddressTypeIcon(addr.addressType)}
                         <p className="font-medium text-customGray">
                           {addr.addressType} Address
                         </p>
@@ -601,16 +599,6 @@ const AddressPage: React.FC = () => {
                     </div>
 
                     <div className="flex gap-3 justify-end md:justify-normal">
-                      {/* {!addr.isDefaultAddress && (
-                        <button
-                          onClick={() => handleSetDefault(addr.id)}
-                          className="flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                          title="Set as default"
-                        >
-                          <Star size={14} />
-                          <span className="md:hidden">Default</span>
-                        </button>
-                      )} */}
                       <button
                         onClick={() => handleEdit(addr)}
                         className="p-2 text-gray-500 hover:text-customOrange rounded-full hover:bg-orange-50 transition-colors"

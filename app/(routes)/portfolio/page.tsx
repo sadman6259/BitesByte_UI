@@ -53,7 +53,7 @@ export default function ProfilePage() {
     avgExerciseDuration: "",
     activity: "",
   });
-  const [currentPlan, setCurrentPlan] = useAtom(sharedPlanAtom);
+  const [, setCurrentPlan] = useAtom(sharedPlanAtom);
 
   const plans = ["Weight Loss", "Maintenance", "Lean Body Mass", "Muscle Gain"];
 
@@ -100,21 +100,16 @@ export default function ProfilePage() {
 
   const handlePlanChange = async (plan: string) => {
     try {
-      // Show loading state
       setIsSubmitting(true);
-
-      // Update local state immediately for better UX
       setUser((prev) => (prev ? { ...prev, currentPlan: plan } : null));
       setShowPlanOptions(false);
-      setCurrentPlan(plan);
+      // setCurrentPlan(plan); // This should now work if your atom is properly typed
 
-      // Send update to backend - using POST to /updateuser with full user data
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_BITESBYTE_API_URL}/updateuser`,
         {
           id: user?.id,
           plan: plan,
-          // Include other required fields to prevent backend validation errors
           name: user?.name,
           email: user?.email,
           goalWeight: user?.goalWeight,
@@ -142,13 +137,18 @@ export default function ProfilePage() {
       }
     } catch (err) {
       console.error("Failed to update plan:", err);
-      setErrorMessage(
-        err.response?.data?.message ||
-          "Failed to update plan. Please try again."
-      );
+
+      let errorMessage = "Failed to update plan. Please try again.";
+
+      if (axios.isAxiosError(err)) {
+        errorMessage = err.response?.data?.message || errorMessage;
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+
+      setErrorMessage(errorMessage);
       setTimeout(() => setErrorMessage(""), 3000);
 
-      // Revert UI if update fails
       setUser((prev) =>
         prev ? { ...prev, currentPlan: user?.currentPlan } : null
       );
@@ -638,51 +638,6 @@ export default function ProfilePage() {
                 )}
               </div>
             </div>
-
-            {/* Plan Selection Section */}
-            {/* <div className="bg-gray-50 p-4 rounded-lg relative">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <CalendarCheck className="text-customOrange" />
-                  <div>
-                    <p className="text-sm text-customOrange">Current Plan</p>
-                    <p className="font-medium text-customGray">
-                      {user.currentPlan}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowPlanOptions(!showPlanOptions)}
-                  className="text-sm font-medium flex items-center text-customOrange hover:text-orange-600 transition-colors"
-                >
-                  Change{" "}
-                  <ChevronDown
-                    className={`ml-1 transition-transform ${
-                      showPlanOptions ? "rotate-180" : ""
-                    }`}
-                    size={16}
-                  />
-                </button>
-              </div>
-
-              {showPlanOptions && (
-                <div className="absolute right-0 left-0 md:left-auto mt-2 w-full md:w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
-                  {plans.map((plan) => (
-                    <button
-                      key={plan}
-                      onClick={() => handlePlanChange(plan)}
-                      className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
-                        plan === user.currentPlan
-                          ? "bg-customGreen/10 text-customGreen"
-                          : "text-customGray hover:bg-gray-100"
-                      }`}
-                    >
-                      {plan}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div> */}
 
             {/* Subscription & Plan Section */}
             <div className="space-y-6">

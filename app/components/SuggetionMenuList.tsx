@@ -19,7 +19,7 @@ const SuggestionMenuList = (props: Props) => {
     axis: "x",
   });
   const [menuList] = useState(chunkArray(props.items, 4));
-  const [cart, setCart] = useAtom(cartAtom);
+  const [cart] = useAtom(cartAtom);
 
   const scrollPrev = () => {
     if (emblaApi) emblaApi.scrollPrev();

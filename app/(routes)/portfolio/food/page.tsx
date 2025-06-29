@@ -1,16 +1,7 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
-import {
-  ChevronLeft,
-  ChevronRight,
-  X,
-  Utensils,
-  Flame,
-  MessageSquare,
-  Calendar,
-  Star,
-} from "lucide-react";
+import { X, Utensils, Flame, Calendar, Star } from "lucide-react";
 
 type MealItem = {
   menuName: string;
@@ -122,86 +113,79 @@ const FoodOrderHistory = () => {
     return new Date(year, month, 1).getDay();
   };
 
-  // Fetch order dates for the current month/year using Axios
-  const fetchOrderDates = async (month: number, year: number) => {
-    if (!userId) return;
+  const fetchOrderDates = useCallback(
+    async (month: number, year: number) => {
+      if (!userId) return;
 
-    setLoading(true);
-    try {
-      const monthYear = `${monthNames[month].toLowerCase()} ${year}`;
+      setLoading(true);
+      try {
+        const monthYear = `${monthNames[month].toLowerCase()} ${year}`;
 
-      // First request to get order dates
-      const datesResponse = await api.get(
-        `${process.env.NEXT_PUBLIC_ORDER_SERVICE_URL}/getorderdatesbymonthyear`,
-        {
-          params: {
-            monthYear,
-            userId,
-          },
-        }
-      );
-      const dates = datesResponse.data;
-
-      // Create month data structure
-      const daysInMonth = getDaysInMonth(year, month);
-      const startDay = getStartDayOfMonth(year, month);
-
-      // Initialize with empty orders
-      const orders: Record<number, Order> = {};
-
-      // Fetch details for each order date
-      for (const dateStr of dates) {
-        const date = new Date(dateStr);
-        const day = date.getDate();
-
-        // Second request to get order details
-        const detailsResponse = await api.get(
-          `${process.env.NEXT_PUBLIC_ORDER_SERVICE_URL}/getorderdetailsbycreateddate`,
-          {
-            params: {
-              createdDate: dateStr,
-              userId,
-            },
-          }
+        // First request to get order dates
+        const datesResponse = await api.get(
+          `${process.env.NEXT_PUBLIC_ORDER_SERVICE_URL}/getorderdatesbymonthyear`,
+          { params: { monthYear, userId } }
         );
-        const mealItems: MealItem[] = detailsResponse.data;
+        const dates = datesResponse.data;
 
-        const meals = mealItems.map((item) => item.menuName);
-        const totalCalories = mealItems.reduce(
-          (sum, item) => sum + item.calorie,
-          0
+        // Create month data structure
+        const daysInMonth = getDaysInMonth(year, month);
+        const startDay = getStartDayOfMonth(year, month);
+        const orders: Record<number, Order> = {};
+
+        // Process all dates in parallel
+        await Promise.all(
+          dates.map(async (dateStr: string) => {
+            const date = new Date(dateStr);
+            const day = date.getDate();
+
+            // Second request to get order details
+            const detailsResponse = await api.get(
+              `${process.env.NEXT_PUBLIC_ORDER_SERVICE_URL}/getorderdetailsbycreateddate`,
+              { params: { createdDate: dateStr, userId } }
+            );
+            const mealItems: MealItem[] = detailsResponse.data;
+
+            orders[day] = {
+              meals: mealItems.map((item) => item.menuName),
+              totalCalories: mealItems.reduce(
+                (sum, item) => sum + item.calorie,
+                0
+              ),
+            };
+          })
         );
 
-        orders[day] = { meals, totalCalories };
+        setMonthData({
+          name: monthNames[month],
+          year,
+          startDay,
+          daysInMonth,
+          orders,
+        });
+      } catch (error) {
+        console.error("Error fetching order data:", error);
+        // Fallback to empty month data if API fails
+        setMonthData({
+          name: monthNames[month],
+          year,
+          startDay: getStartDayOfMonth(year, month),
+          daysInMonth: getDaysInMonth(year, month),
+          orders: {},
+        });
+      } finally {
+        setLoading(false);
       }
-
-      setMonthData({
-        name: monthNames[month],
-        year,
-        startDay,
-        daysInMonth,
-        orders,
-      });
-    } catch (error) {
-      console.error("Error fetching order data:", error);
-      // Fallback to empty month data if API fails
-      const daysInMonth = getDaysInMonth(year, month);
-      const startDay = getStartDayOfMonth(year, month);
-      setMonthData({
-        name: monthNames[month],
-        year,
-        startDay,
-        daysInMonth,
-        orders: {},
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [userId]
+  ); // Only recreate when userId changes
 
   useEffect(() => {
-    fetchOrderDates(selectedMonth, selectedYear);
-  }, [selectedMonth, selectedYear, userId]);
+    const fetchData = async () => {
+      await fetchOrderDates(selectedMonth, selectedYear);
+    };
+    fetchData();
+  }, [selectedMonth, selectedYear, userId, fetchOrderDates]);
 
   const handleMonthChange = (month: number, year: number) => {
     setIsAnimating(true);

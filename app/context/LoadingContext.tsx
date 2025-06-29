@@ -1,12 +1,17 @@
-// context/LoadingContext.tsx
 "use client";
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+} from "react";
 
 type LoadingContextType = {
   isLoading: boolean;
   startLoading: () => void;
   stopLoading: () => void;
-  forceStopLoading: () => void; // Emergency stop
+  forceStopLoading: () => void;
 };
 
 const LoadingContext = createContext<LoadingContextType | undefined>(undefined);
@@ -17,39 +22,46 @@ export const LoadingProvider = ({
   children: React.ReactNode;
 }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Auto-stop after 8 seconds as fallback
+  // Auto-stop after 5 seconds as fallback
   useEffect(() => {
     if (isLoading) {
-      const id = setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         console.warn("Loading timeout - forcing stop");
         setIsLoading(false);
       }, 5000);
-      setTimeoutId(id);
 
       return () => {
-        if (timeoutId) clearTimeout(timeoutId);
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
       };
     }
   }, [isLoading]);
 
+  const clearCurrentTimeout = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  };
+
   const startLoading = () => {
     console.log("Starting loading...");
-    // Clear any existing timeout
-    if (timeoutId) clearTimeout(timeoutId);
+    clearCurrentTimeout();
     setIsLoading(true);
   };
 
   const stopLoading = () => {
     console.log("Stopping loading...");
-    if (timeoutId) clearTimeout(timeoutId);
+    clearCurrentTimeout();
     setIsLoading(false);
   };
 
   const forceStopLoading = () => {
     console.warn("Force stopping loading...");
-    if (timeoutId) clearTimeout(timeoutId);
+    clearCurrentTimeout();
     setIsLoading(false);
   };
 
