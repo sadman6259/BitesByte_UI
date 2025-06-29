@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     permissions:
-      id-token: write
+      id-token: write   # ✅ Enables GitHub OIDC authentication
       contents: read
 
     steps:
@@ -24,7 +24,6 @@ jobs:
           submodules: true
           lfs: false
 
-      # ✅ Use your specified Node.js and npm versions
       - name: Set up Node.js 21.7.3
         uses: actions/setup-node@v4
         with:
@@ -44,27 +43,17 @@ jobs:
       - name: Build Next.js app
         run: npm run build
 
-      # Optional: use this if you're using `next export` for static site
-      # - name: Export Next.js static files
+      # Optional: Uncomment if you're using `next export`
+      # - name: Export static site
       #   run: npm run export
 
-      # ✅ Get GitHub ID token for OIDC auth
-      - name: Get Id Token
-        uses: actions/github-script@v6
-        id: idtoken
-        with:
-          script: |
-            return await core.getIDToken();
-          result-encoding: string
-
       - name: Deploy to Azure Static Web Apps
-        uses: Azure/static-web-apps-deploy@v1.0.0-preview
+        uses: azure/static-web-apps-deploy@v1
         with:
           action: "upload"
-          github_id_token: ${{ steps.idtoken.outputs.result }}
-          app_location: "/"               # where your Next.js app is
-          output_location: ".next"        # or "out" if you're exporting statically
-          skip_app_build: true            # ✅ tells Azure we already built it
+          app_location: "/"               # Adjust if app is in a subfolder
+          output_location: ".next"        # Use "out" if using `next export`
+          skip_app_build: true            # ✅ Tells Azure we already built locally
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
@@ -73,6 +62,6 @@ jobs:
     steps:
       - name: Close Pull Request
         id: closepullrequest
-        uses: Azure/static-web-apps-deploy@v1.0.0-preview
+        uses: Azure/static-web-apps-deploy@v1
         with:
           action: "close"
